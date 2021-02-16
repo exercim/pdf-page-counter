@@ -1,64 +1,99 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #
 # Filename: pdfpagenumber.py
 #
 # Author: Thomas Grasse
-# Created on: Tue Feb 02 2021
+# Created on: Tue Feb 15 2021
 #
 # Copyright (c) 2021 Exercim Oy
 #
 
+'''This module determines the total number of pages in a PDF document. The passed docunent can 
+be of any format and might contain several PDF documents. As an example, a print stream file (PRN) created by a printer 
+driver might contain several PDFs. This script determines the number of PDF pages of all enclosed PDF documents.'''
+
 import sys
 import re
+from argparse import ArgumentParser
+import logging
+
+logHandler = logging.StreamHandler( sys.stdout )
+logFormatter = logging.Formatter( 
+    '[{levelname:4}] {asctime} {funcName} Line {lineno}: {message}',
+    datefmt= r'%d.%m.%Y %H:%M:%S',
+    style='{' )
+logHandler.setFormatter( logFormatter )
+logHandler.setLevel( logging.DEBUG )
+log = logging.getLogger()
+log.addHandler( logHandler )
+log.setLevel( logging.ERROR )
 
 REGEX_COUNT = b'/Count [0-9]+'
 REGEX_PDF = b'%PDF\-.+?%%EOF'
 
-# Extracts an object from the PDF file strcuture
+def LogIt( func ):
+    def log_wrapper( id, source ):
+        log.info( f"{func.__name__} started with argument: {id}." )
+        log.debug( f"{func.__name__} source: {source}." )
+        rv = func( id, source )
+        log.info( f"{func.__name__} finished with result: {rv}." )
+        return rv
+    return log_wrapper
+
+@LogIt
 def extractObject( objectId, source ):
+    '''This function searches the object with the object id objectId within source and returns
+    a String representation of the found object.'''
+
     regex = b'[ \n]' + objectId + b' obj.+?endobj'
     m = re.search( regex, source, re.DOTALL  )
-    return m.string[m.start():m.end()]
+    log.debug( f"extractObject match object: {m}." )
+    if m == None:
+        log.error( 'extractObject match object is None-Type.')
+    assert m != None, f"PDF error: Object {objectId} does not exist is source."
+    rv = m.string[m.start():m.end()]
+    assert rv != None, f"Object was null. Tag: {objectId}."
+    assert len( rv ) > 7, f"Object string is too short. Found tag link: {rv}."
+    return rv
 
-# Extracts a pdf tag from nay pdf structure; from single object to full file
+@LogIt
 def extractLinkIdFromTag( tagId, source ):
+    '''This function searches for a tag with the id tagId within source. The function assumes, 
+    that the found tag is of type of a link tag. Successively, the function extracts the link id 
+    from the tag and returns it.'''
+
     regex = tagId + b' +[0-9]+ +[0-9]+ +R'
     m = re.search( regex, source, re.DOTALL )
-    return m.string[m.start():m.end()].lstrip(tagId).rstrip(b'R').strip()
+    log.debug( f"extractLinkIdFromTag match object: {m}." )
+    if m == None:
+        log.error( 'extractLinkIdFromTag match object is None-Type.')
+    assert m != None, f"PDF error: Link tag {tagId} does not exists in source"
+    rv = m.string[m.start():m.end()].lstrip(tagId).rstrip(b'R').strip()
+    assert rv != None, f"Tag link was null. Tag: {tagId}."
+    assert len( rv ) > 2, f"Tag Link string is too short. Found tag link: {rv}."
+    return rv
 
-# test Documents for Mac
-sys.argv.append( '/Users/thomas/Exercim Oy/Synka - prn page number tool/Kanzlei203_NachbearbeitungSB_BAD_D_SX_1_20200915-225916_0154.prn' )
-sys.argv.append( '/Users/thomas/Exercim Oy/Synka - prn page number tool/NBREG_Dortmund_S_REG_K4_DX_1_20201021-002943_1.prn' )
-#sys.argv.append( '/Users/thomas/Exercim Oy/Synka - prn page number tool/NachbearbeitungSB_Dortmund_1_REG_SX_1_20201031-002710_1.prn' )sys.argv.append( '/Users/thomas/Documents/code-projects/pdf-page-counter/background_material/PDF32000_2008.pdf' )
-#sys.argv.append( '/Users/thomas/Documents/code-projects/pdf-page-counter/background_material/PDF Explained.pdf' )
+def extractPdfPageCount( filepath ):
+    '''This function extratcs the number of PDF pages in a document.'''
 
-# Now for MS
-#sys.argv.append( 'Z:\Kanzlei203_NachbearbeitungSB_BAD_D_SX_1_20200915-225916_0154.prn' )
-#sys.argv.append( 'Z:\NBREG_Dortmund_S_REG_K4_DX_1_20201021-002943_1.prn' )
-#sys.argv.append( 'Z:\NachbearbeitungSB_Dortmund_1_REG_SX_1_20201031-002710_1.prn' )
-#sys.argv.append( 'Y:\\background_material\PDF32000_2008.pdf' )
-#sys.argv.append( 'Y:\\background_material\PDF Explained.pdf' )
-
-# check if at least one parameter was passed
-if len( sys.argv ) < 2:
-    print("Skript needs at least 1 parameter")
-    sys.exit( -1 )
-
-totalPageCount = 0 # accumulates the end result
-
-for fileLocation in sys.argv[1:len(sys.argv)]:
-    with open(fileLocation, "rb") as f: #if open fails, the exception is bubbled up to the command line
+    with open(filepath, 'rb') as f: #if open fails, the exception is bubbled up to the command line
+        assert f != None, f"File error while opening file {filepath}."
         fileContent = f.read()
+        log.debug( f"File has been read: {fileContent}." )
 
     # Extract list of pdf documents
     pdfDocuments = re.findall( REGEX_PDF, fileContent, re.DOTALL )
     if len(pdfDocuments) < 1:
-        print("Document does not contain PDF files")
+        log.error( f"Document does not contain PDF files: {fileContent}." )
+        print( f"Document does not contain PDF files: {fileContent}." )
         sys.exit( -1 )
+
+    documentPageCount = 0 #accumulates the number of pages in file
 
     # for each pdf search page count tag
     for pdf in pdfDocuments:
+        log.debug( f"PDF extracted: {pdf}." )
 
         # Find root tag and extract catalog id
         catalogId = extractLinkIdFromTag( b'/Root', pdf )
@@ -69,9 +104,73 @@ for fileLocation in sys.argv[1:len(sys.argv)]:
 
         #Find page tree root object and extract page count tag
         pageTreeRoot = extractObject( pageTreeRootId, pdf )
+        log.info( f"Page tree root found: {pageTreeRoot}." )
         m = re.search( REGEX_COUNT, pageTreeRoot, re.DOTALL  )
+        log.debug( f"Count tag search match object: {m}." )
+        if m == None:
+            log.error( f"Count Tag search match object is None-Type for page tree root object: {pageTreeRoot}." )
+        assert m != None, f"Count tag not found in page tree root object: {pageTreeRootId}."
+
         pageCount = m.string[m.start():m.end()].lstrip(b'/Count').rstrip(b'R').strip()
+        assert pageCount != None, f"Page count was null. Object: {pageTreeRoot}."
+        assert len( pageCount ) > 0, f"Page count string is too short. Found page count: {pageCount}."
+        log.info( f"Page count found: {pageCount}." )
 
-        totalPageCount += int(pageCount)
+        documentPageCount += int(pageCount)      
 
+    log.debug ( f"Document: {f}." )
+    log.info( f"Document page count: Document: {fileLocation}, Count: {documentPageCount}.")
+    return documentPageCount
+
+
+# Here starts the main program of the module
+
+# test Documents for Mac
+sys.argv.append( '/Users/thomas/Exercim Oy/Synka - prn page number tool/Kanzlei203_NachbearbeitungSB_BAD_D_SX_1_20200915-225916_0154.prn' )
+#sys.argv.append( '/Users/thomas/Exercim Oy/Synka - prn page number tool/NBREG_Dortmund_S_REG_K4_DX_1_20201021-002943_1.prn' )
+#sys.argv.append( '/Users/thomas/Exercim Oy/Synka - prn page number tool/NachbearbeitungSB_Dortmund_1_REG_SX_1_20201031-002710_1.prn' )
+#sys.argv.append( '/Users/thomas/Documents/code-projects/pdf-page-counter/background_material/PDF32000_2008.pdf' )
+#sys.argv.append( '/Users/thomas/Documents/code-projects/pdf-page-counter/background_material/PDF Explained.pdf' )
+
+# Now for MS
+#sys.argv.append( 'Z:\Kanzlei203_NachbearbeitungSB_BAD_D_SX_1_20200915-225916_0154.prn' )
+#sys.argv.append( 'Z:\NBREG_Dortmund_S_REG_K4_DX_1_20201021-002943_1.prn' )
+#sys.argv.append( 'Z:\NachbearbeitungSB_Dortmund_1_REG_SX_1_20201031-002710_1.prn' )
+#sys.argv.append( 'Y:\\background_material\PDF32000_2008.pdf' )
+#sys.argv.append( 'Y:\\background_material\PDF Explained.pdf' )
+
+parser = ArgumentParser( description = '''Determines the total number of pages in a PDF document. The passed docunent can
+     be of any format and might contain several PDF documents. As an example, a print stream file (PRN) created by a printer 
+     driver might contain several PDFs. This script determines the number of PDF pages of all enclosed PDF documents.''',
+    epilog = '(c) 2021 Exercim Oy',
+    add_help = True )
+parser.add_argument( 'filepathList',
+    nargs='+',
+    help = 'Location of the PDF file to process',
+    metavar = 'Filepath' )
+parser.add_argument( '-v',
+    '--verbose',
+    default= 0,
+    type= int,
+    choices= range(0, 3),
+    nargs='?',
+    help= 'Set the verbosity of the function logging. Possible values are: 0, 1, 2' )
+args = parser.parse_args()
+log.debug( f"Parsed command line arguments: {args}." )
+logLevels = {
+    0: logging.ERROR,
+    1: logging.INFO,
+    2: logging.DEBUG
+}
+log.setLevel( logLevels[args.verbose])
+
+totalPageCount = 0 # accumulates the end result
+
+for fileLocation in args.filepathList:
+    totalPageCount += extractPdfPageCount( fileLocation )
+
+log.info( f"Total page count: {totalPageCount}." )
+
+#help(__name__)
+print( f"{totalPageCount}" )
 sys.exit( totalPageCount )
