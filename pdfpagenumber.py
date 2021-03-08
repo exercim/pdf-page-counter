@@ -18,16 +18,17 @@ import re
 from argparse import ArgumentParser
 import logging
 
-logHandler = logging.StreamHandler( sys.stdout )
-logFormatter = logging.Formatter( 
-    '[{levelname:4}] {asctime} {funcName} Line {lineno}: {message}',
-    datefmt= r'%d.%m.%Y %H:%M:%S',
-    style='{' )
-logHandler.setFormatter( logFormatter )
-logHandler.setLevel( logging.DEBUG )
-log = logging.getLogger()
-log.addHandler( logHandler )
-log.setLevel( logging.ERROR )
+if __name__ == "__main__":
+    logHandler = logging.StreamHandler( sys.stdout )
+    logFormatter = logging.Formatter( 
+        '[{levelname:4}] {asctime} {funcName} Line {lineno}: {message}',
+        datefmt= r'%d.%m.%Y %H:%M:%S',
+        style='{' )
+    logHandler.setFormatter( logFormatter )
+    logHandler.setLevel( logging.DEBUG )
+    log = logging.getLogger()
+    log.addHandler( logHandler )
+    log.setLevel( logging.ERROR )
 
 REGEX_COUNT = b'/Count [0-9]+'
 REGEX_PDF = b'%PDF\-.+?%%EOF'
@@ -51,7 +52,7 @@ def extractObject( objectId, source ):
     log.debug( f"extractObject match object: {m}." )
     if m == None:
         log.error( 'extractObject match object is None-Type.')
-    assert m != None, f"PDF error: Object {objectId} does not exist is source."
+        return None
     rv = m.string[m.start():m.end()]
     assert rv != None, f"Object was null. Tag: {objectId}."
     assert len( rv ) > 7, f"Object string is too short. Found tag link: {rv}."
@@ -68,7 +69,7 @@ def extractLinkIdFromTag( tagId, source ):
     log.debug( f"extractLinkIdFromTag match object: {m}." )
     if m == None:
         log.error( 'extractLinkIdFromTag match object is None-Type.')
-    assert m != None, f"PDF error: Link tag {tagId} does not exists in source"
+        return None
     rv = m.string[m.start():m.end()].lstrip(tagId).rstrip(b'R').strip()
     assert rv != None, f"Tag link was null. Tag: {tagId}."
     assert len( rv ) > 2, f"Tag Link string is too short. Found tag link: {rv}."
@@ -139,38 +140,40 @@ sys.argv.append( '/Users/thomas/Exercim Oy/Synka - prn page number tool/Kanzlei2
 #sys.argv.append( 'Y:\\background_material\PDF32000_2008.pdf' )
 #sys.argv.append( 'Y:\\background_material\PDF Explained.pdf' )
 
-parser = ArgumentParser( description = '''Determines the total number of pages in a PDF document. The passed docunent can
-     be of any format and might contain several PDF documents. As an example, a print stream file (PRN) created by a printer 
-     driver might contain several PDFs. This script determines the number of PDF pages of all enclosed PDF documents.''',
-    epilog = '(c) 2021 Exercim Oy',
-    add_help = True )
-parser.add_argument( 'filepathList',
-    nargs='+',
-    help = 'Location of the PDF file to process',
-    metavar = 'Filepath' )
-parser.add_argument( '-v',
-    '--verbose',
-    default= 0,
-    type= int,
-    choices= range(0, 3),
-    nargs='?',
-    help= 'Set the verbosity of the function logging. Possible values are: 0, 1, 2' )
-args = parser.parse_args()
-log.debug( f"Parsed command line arguments: {args}." )
-logLevels = {
-    0: logging.ERROR,
-    1: logging.INFO,
-    2: logging.DEBUG
-}
-log.setLevel( logLevels[args.verbose])
+if __name__ == "__main__":
+    parser = ArgumentParser( description = '''Determines the total number of pages in a PDF document. The passed docunent can
+        be of any format and might contain several PDF documents. As an example, a print stream file (PRN) created by a printer 
+        driver might contain several PDFs. This script determines the number of PDF pages of all enclosed PDF documents.''',
+        epilog = '(c) 2021 Exercim Oy',
+        add_help = True )
+    parser.add_argument( 'filepathList',
+        nargs='+',
+        help = 'Location of the PDF file to process',
+        metavar = 'Filepath' )
+    parser.add_argument( '-v',
+        '--verbose',
+        default= 0,
+        type= int,
+        choices= range(0, 3),
+        nargs='?',
+        help= 'Set the verbosity of the function logging. Possible values are: 0, 1, 2' )
+    args = parser.parse_args()
+    log.debug( f"Parsed command line arguments: {args}." )
+    logLevels = {
+        0: logging.ERROR,
+        1: logging.INFO,
+        2: logging.DEBUG
+    }
+    log.setLevel( logLevels[args.verbose])
+    #log.setLevel( logging.DEBUG )
 
-totalPageCount = 0 # accumulates the end result
+    totalPageCount = 0 # accumulates the end result
 
-for fileLocation in args.filepathList:
-    totalPageCount += extractPdfPageCount( fileLocation )
+    for fileLocation in args.filepathList:
+        totalPageCount += extractPdfPageCount( fileLocation )
 
-log.info( f"Total page count: {totalPageCount}." )
+    log.info( f"Total page count: {totalPageCount}." )
 
-#help(__name__)
-print( f"{totalPageCount}" )
-sys.exit( totalPageCount )
+    #help(__name__)
+    print( f"{totalPageCount}" )
+    sys.exit( totalPageCount )
