@@ -28,10 +28,13 @@ if __name__ == "__main__":
     logHandler.setLevel( logging.DEBUG )
     log = logging.getLogger()
     log.addHandler( logHandler )
-    log.setLevel( logging.ERROR )
+    log.setLevel( logging.DEBUG )
 
 REGEX_COUNT = b'/Count [0-9]+'
-REGEX_PDF = b'%PDF\-.+?%%EOF'
+#REGEX_PDF = b'%PDF\-.+?%%EOF'
+REGEX_PDF = b'%PDF\-.+?(?=%PDF\-|\Z)'
+#REGEX_PDF = b'%PDF\-.+(?!PDF\-).+'
+VERSION = "1.1"
 
 def LogIt( func ):
     def log_wrapper( id, source ):
@@ -47,7 +50,7 @@ def extractObject( objectId, source ):
     '''This function searches the object with the object id objectId within source and returns
     a String representation of the found object.'''
 
-    regex = b'[ \n]' + objectId + b' obj.+?endobj'
+    regex = b'\s' + objectId + b' obj.+?endobj'
     m = re.search( regex, source, re.DOTALL  )
     log.debug( f"extractObject match object: {m}." )
     if m == None:
@@ -84,7 +87,7 @@ def extractPdfPageCount( filepath ):
         log.debug( f"File has been read: {fileContent}." )
 
     # Extract list of pdf documents
-    pdfDocuments = re.findall( REGEX_PDF, fileContent, re.DOTALL )
+    pdfDocuments = re.findall(REGEX_PDF, fileContent, re.DOTALL)
     if len(pdfDocuments) < 1:
         log.error( f"Document does not contain PDF files: {fileContent}." )
         print( f"Document does not contain PDF files: {fileContent}." )
@@ -127,11 +130,12 @@ def extractPdfPageCount( filepath ):
 # Here starts the main program of the module
 
 # test Documents for Mac
-sys.argv.append( '/Users/thomas/Exercim Oy/Synka - prn page number tool/Kanzlei203_NachbearbeitungSB_BAD_D_SX_1_20200915-225916_0154.prn' )
+#sys.argv.append( '/Users/thomas/Exercim Oy/Synka - prn page number tool/Kanzlei203_NachbearbeitungSB_BAD_D_SX_1_20200915-225916_0154.prn' )
 #sys.argv.append( '/Users/thomas/Exercim Oy/Synka - prn page number tool/NBREG_Dortmund_S_REG_K4_DX_1_20201021-002943_1.prn' )
 #sys.argv.append( '/Users/thomas/Exercim Oy/Synka - prn page number tool/NachbearbeitungSB_Dortmund_1_REG_SX_1_20201031-002710_1.prn' )
 #sys.argv.append( '/Users/thomas/Documents/code-projects/pdf-page-counter/background_material/PDF32000_2008.pdf' )
 #sys.argv.append( '/Users/thomas/Documents/code-projects/pdf-page-counter/background_material/PDF Explained.pdf' )
+#sys.argv.append( '/Users/thomas/Exercim Oy/Synka - prn page number tool/lsoft.pdf' )
 
 # Now for MS
 #sys.argv.append( 'Z:\Kanzlei203_NachbearbeitungSB_BAD_D_SX_1_20200915-225916_0154.prn' )
@@ -139,24 +143,41 @@ sys.argv.append( '/Users/thomas/Exercim Oy/Synka - prn page number tool/Kanzlei2
 #sys.argv.append( 'Z:\NachbearbeitungSB_Dortmund_1_REG_SX_1_20201031-002710_1.prn' )
 #sys.argv.append( 'Y:\\background_material\PDF32000_2008.pdf' )
 #sys.argv.append( 'Y:\\background_material\PDF Explained.pdf' )
+#sys.argv.append( 'Z:\lsoft.pdf' )
+
 
 if __name__ == "__main__":
-    parser = ArgumentParser( description = '''Determines the total number of pages in a PDF document. The passed docunent can
+    parser = ArgumentParser(  prog='PDF Page Counter',
+        description = '''Determines the total number of pages in a PDF document. The passed docunent can
         be of any format and might contain several PDF documents. As an example, a print stream file (PRN) created by a printer 
         driver might contain several PDFs. This script determines the number of PDF pages of all enclosed PDF documents.''',
         epilog = '(c) 2021 Exercim Oy',
         add_help = True )
     parser.add_argument( 'filepathList',
         nargs='+',
-        help = 'Location of the PDF file to process',
+        help = 'Location of the PDF file(s) to process.',
         metavar = 'Filepath' )
-    parser.add_argument( '-v',
-        '--verbose',
+    parser.add_argument( 
+        '-v',
+        action='count',
         default= 0,
+        #type= int,
+        #choices= range(0, 3),
+        help= 'Set the verbosity of the function logging. Possible values are: none, -v, -vv.',
+        dest= 'verbose')
+    parser.add_argument(
+        '--verbose',
+        action='store',
+        default=0,
         type= int,
         choices= range(0, 3),
-        nargs='?',
-        help= 'Set the verbosity of the function logging. Possible values are: 0, 1, 2' )
+        help= 'Set the verbosity of the function logging. 0 is default.',
+        dest= 'verbose')
+    parser.add_argument(
+        '--version',
+        action='version',
+        version='%(prog)s 1.1'
+    )
     args = parser.parse_args()
     log.debug( f"Parsed command line arguments: {args}." )
     logLevels = {
