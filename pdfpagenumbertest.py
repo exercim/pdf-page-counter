@@ -9,29 +9,69 @@
 # Copyright (c) 2021 Exercim Oy
 #
 
+import logging
 import unittest
 import pdfpagenumber
 
 class PdfPageNumberTest( unittest.TestCase ):
 
-    def __init__( self ):
-        self.testFiles = (
-            '/Users/thomas/Exercim Oy/Synka - prn page number tool/Kanzlei203_NachbearbeitungSB_BAD_D_SX_1_20200915-225916_0154.prn',
-            '/Users/thomas/Exercim Oy/Synka - prn page number tool/NBREG_Dortmund_S_REG_K4_DX_1_20201021-002943_1.prn',
-            '/Users/thomas/Exercim Oy/Synka - prn page number tool/NachbearbeitungSB_Dortmund_1_REG_SX_1_20201031-002710_1.prn',
-            '/Users/thomas/Documents/code-projects/pdf-page-counter/background_material/PDF32000_2008.pdf',
-            '/Users/thomas/Documents/code-projects/pdf-page-counter/background_material/PDF Explained.pdf' )
+    log = logging.getLogger()
 
-    def testPdfObjectExtraction( self ):
-        pdfpagenumber.extractObject
-        self.assertTrue( True )
+    def testExtractObjectSuccessfully( self ):
+        # given 
+        object = b' 7 0 obj /jfjhve /hjefhew endobj'
+        source = b'hdshdsdd %PDF-1.1  kijoweifhwefowf  fejfwe %%EOF>>><<  <<<' + object + b'jdfwe fwejfjew <<<>>> %%%EOF jt t7zjtjn '
 
-    def testPdfLinkIdExtraction( self ):
-        self.assertTrue( True )
+        # test
+        extractedObject = pdfpagenumber.extractObject(b'7 0', source)
+
+        # then
+        self.assertIsNotNone(extractedObject)
+        self.assertEqual(object, extractedObject)
+        self.assertLogs(self.log, "extractObject  finished with result: " + object.decode('ascii'))
+
+    def testExtractObjectIdNotFound( self ):
+        # given 
+        object = b'obj /jfjhve /hjefhew endobj'
+        source = b'hdshdsdd %PDF-1.1  kijoweifhwefowf  fejfwe %%EOF>>><<  <<<' + object + b'jdfwe fwejfjew <<<>>> %%%EOF ur56u 5r  '
+
+        # test
+        extractedObject = pdfpagenumber.extractObject(b'7 0', source)
+
+        # then
+        self.assertIsNone(extractedObject)
+        self.assertLogs(self.log, "extractObject match object is None-Type.")
+
+    @unittest.skip("Test does not work")
+    def testExtractLinkSuccess( self ):
+        # given 
+        object = b'7 0'
+        tag = b'/Root '
+        source = b'hdshdsdd %PDF-1.1  kijoweifhwefowf ' + tag + object + b' R fejfwe %%EOF>>><<  <<<jdfwe fwejfjew <<<>>> %%%EOF tu5u6ru '
+
+        # test
+        extractedObject = pdfpagenumber.extractLinkIdFromTag(tag, source)
+
+        # then
+        self.assertIsNotNone(extractedObject)
+        self.assertEqual(object, extractedObject)
+
+    def testExtractLinkSuccess( self ):
+        # given 
+        object = b'7 0'
+        tag = b'/Root '
+        source = b'hdshdsdd %PDF-1.1  kijoweifhwefowf ' + tag + object + b' fejfwe %%EOF>>><<  <<<jdfwe fwejfjew <<<>>> %%%EOF tu5u6ru '
+
+        # test
+        extractedObject = pdfpagenumber.extractLinkIdFromTag(tag, source)
+
+        # then
+        self.assertIsNone(extractedObject)
+        self.assertLogs(self.log, "extractLinkIdFromTag match object is None-Type.")
 
     def testHelp( self ):
-        help( pdfpagenumber )
-
+        testResult = help( pdfpagenumber )
+        self.assertIsNone(testResult)
 
 if __name__ == "__main__":
     unittest.main()

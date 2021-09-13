@@ -18,22 +18,20 @@ import re
 from argparse import ArgumentParser
 import logging
 
-if __name__ == "__main__":
-    logHandler = logging.StreamHandler( sys.stdout )
-    logFormatter = logging.Formatter( 
-        '[{levelname:4}] {asctime} {funcName} Line {lineno}: {message}',
-        datefmt= r'%d.%m.%Y %H:%M:%S',
-        style='{' )
-    logHandler.setFormatter( logFormatter )
-    logHandler.setLevel( logging.DEBUG )
-    log = logging.getLogger()
-    log.addHandler( logHandler )
-    log.setLevel( logging.DEBUG )
+#if __name__ == "__main__":
+logHandler = logging.StreamHandler( sys.stdout )
+logFormatter = logging.Formatter( 
+    '[{levelname:4}] {asctime} {funcName} Line {lineno}: {message}',
+    datefmt= r'%d.%m.%Y %H:%M:%S',
+    style='{' )
+logHandler.setFormatter( logFormatter )
+logHandler.setLevel( logging.DEBUG )
+log = logging.getLogger()
+log.addHandler( logHandler )
+log.setLevel( logging.DEBUG )
 
 REGEX_COUNT = b'/Count [0-9]+'
-#REGEX_PDF = b'%PDF\-.+?%%EOF'
 REGEX_PDF = b'%PDF\-.+?(?=%PDF\-|\Z)'
-#REGEX_PDF = b'%PDF\-.+(?!PDF\-).+'
 VERSION = "1.1"
 
 def LogIt( func ):
