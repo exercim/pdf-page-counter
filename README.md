@@ -9,7 +9,7 @@ Questions, comments and big reports as well as vulnerability reports can be dire
 
 # Usage
 
-The package can be used in 2 ways. When executed as the main package with: `python3 -m pdf-page-counter <filename>`. The process ends with the page count returned as the process exit code.
+The package can be used in 2 ways. When executed as the main package with: `python3 -m pdf-page-count <filename>`. The process ends with the page count returned as the process exit code.
 
 The package can also be imported, by using: `import pdfpagenumber`. The function `extractPdfPageCount` is used with the path to the PDF file as argument, to determine the page count.
 
