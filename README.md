@@ -5,7 +5,7 @@ See the [Installing Packages](https://packaging.python.org/installing/) instruct
 
 Make sure you uns an up-to-date version of pip. 
 
-Questions, comments and big reports as well as vulnerability reports can be directly submitted to teh maintainer: <thomas.grasse@exercim.com>.
+Questions, comments and big reports as well as vulnerability reports can be directly submitted to the maintainer: <thomas.grasse@exercim.eu>.
 
 # Usage
 
